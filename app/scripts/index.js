@@ -8,6 +8,8 @@ import { default as contract } from 'truffle-contract'
 // Import our contract artifacts and turn them into usable abstractions.
 import estoreArtifacts from '../../build/contracts/EStore.json'
 
+const serialize = require('form-serialize')
+
 // EStore is our usable abstraction, which we'll use through the code below.
 const EStore = contract(estoreArtifacts)
 
@@ -19,6 +21,13 @@ window.App = {
         EStore.setProvider(web3.currentProvider)
 
         renderStore()
+
+        $('#add-item-to-store').submit((eve) => {
+            const form = document.querySelector('#add-item-to-store')
+            const obj = serialize(form, { hash: true })
+            saveProduct(obj)
+            eve.preventDefault()
+        })
     }
 }
 
@@ -47,6 +56,14 @@ const renderProduct = (instance, index) => {
 }
 
 const displayPrice = (wei) => { return web3.fromWei(wei, 'ether') }
+
+const saveProduct = (product) => {
+    EStore.deployed().then((f) => {
+        return f.addProductToStore(product["product-name"], product["product-category"], "image", "desc", Date.parse(product["product-start-time"]) / 1000, web3.toWei(product["product-price"], "ether"), product["product-condition"], { from: web3.eth.accounts[0], gas: 4700000 })
+    }).then((f) => {
+        console.log("Product has been added to the store!")
+    })
+}
 
 window.addEventListener('load', () => {
     // Checking if Web3 has been injected by the browser (Mist/MetaMask)
