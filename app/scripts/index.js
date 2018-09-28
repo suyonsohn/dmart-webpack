@@ -67,6 +67,10 @@ const renderProductDetails = (productId) => {
             $('#product-price').html(displayPrice(f[6]).toNumber())
             $('#product-id').val(f[0])
             $('#buy-now-price').val(displayPrice(f[6]))
+            ipfs.cat(f[4]).then((file) => {
+                let descText = file.toString()
+                $('#product-desc').append(`<div>${descText}</div>`)
+            })
         })
     })
 }
@@ -115,6 +119,7 @@ const saveProduct = (product) => {
     })
 }
 
+// https://ethereum.stackexchange.com/questions/32046/how-do-i-implement-buffer-readable-stream-in-order-to-add-a-file-to-ipfs
 const addImageToIpfs = (reader) => {
     return new Promise((resolve, reject) => {
         const buffer = Buffer.from(reader.result)
