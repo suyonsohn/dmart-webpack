@@ -38,4 +38,16 @@ contract EStore {
         Product memory product = stores[productIdInStore[_productId]][_productId];
         return (product.id, product.name, product.category, product.imageLink, product.descLink, product.createdAt, product.price, product.condition, product.buyer);
     }
+
+    function buy(uint _productId) payable public {
+        // Load product
+        Product memory product = stores[productIdInStore[_productId]][_productId];
+        // Check if anyone already bought the product
+        require(product.buyer == address(0));
+        // Check if the buyer sent enough fund
+        require(msg.value >= product.price);
+        product.buyer = msg.sender;
+        // Update stores
+        stores[productIdInStore[_productId]][_productId] = product;
+    }
 }
