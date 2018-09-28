@@ -10,8 +10,13 @@ import estoreArtifacts from '../../build/contracts/EStore.json'
 
 const serialize = require('form-serialize')
 
+const ipfsAPI = require('ipfs-api')
+const ipfs = ipfsAPI({ host: 'localhost', port: '5001', protocol: 'http' })
+
 // EStore is our usable abstraction, which we'll use through the code below.
 const EStore = contract(estoreArtifacts)
+
+let reader;
 
 window.App = {
     start: () => {
@@ -27,6 +32,12 @@ window.App = {
         } else {
             renderStore()
         }
+
+        $('#product-image').change((e) => {
+            const file = e.target.files[0]
+            reader = new window.FileReader()
+            reader.readAsArrayBuffer(file)
+        })
 
         $('#add-item-to-store').submit((e) => {
             const form = document.querySelector('#add-item-to-store')
@@ -51,6 +62,7 @@ window.App = {
 const renderProductDetails = (productId) => {
     EStore.deployed().then((p) => {
         p.getProduct.call(productId).then((f) => {
+            $('#product-image').html(`<img src='http://localhost:8080/ipfs/${f[3]}' />`)
             $('#product-name').html(f[1])
             $('#product-price').html(displayPrice(f[6]).toNumber())
             $('#product-id').val(f[0])
@@ -77,6 +89,7 @@ const renderProduct = (instance, index) => {
     instance.getProduct.call(index).then((f) => {
         let productContainer = $('<div>')
         productContainer.addClass('col-sm-3 text-center col-margin-bottom-1 product')
+        productContainer.append(`<img src='http://localhost:8080/ipfs/${f[3]}' />`)
         productContainer.append(`<div class='title'>${f[1]}</div>`)
         productContainer.append(`<div> Price: ${displayPrice(f[6])}</div>`)
         productContainer.append(`<a href='product.html?id=${f[0]}'>Details</div>`)
@@ -87,10 +100,48 @@ const renderProduct = (instance, index) => {
 const displayPrice = (wei) => { return web3.fromWei(wei, 'ether') }
 
 const saveProduct = (product) => {
-    EStore.deployed().then((f) => {
-        return f.addProductToStore(product["product-name"], product["product-category"], "image", "desc", Date.parse(product["product-start-time"]) / 1000, web3.toWei(product["product-price"], "ether"), product["product-condition"], { from: web3.eth.accounts[0], gas: 4700000 })
-    }).then((f) => {
-        console.log("Product has been added to the store!")
+    addImageToIpfs(reader).then((imageHash) => {
+        addDescToIpfs(product["product-description"]).then((descHash) => {
+            EStore.deployed().then((f) => {
+                return f.addProductToStore(product["product-name"], product["product-category"], imageHash, descHash, Date.parse(product
+                ["product-start-time"]) / 1000, web3.toWei(product["product-price"], "ether"), product["product-condition"], {
+                        from: web3.eth.accounts[0], gas: 4700000
+                    })
+            }).then((f) => {
+                console.log("Product has been added to the store!")
+                console.log(f)
+            })
+        })
+    })
+}
+
+const addImageToIpfs = (reader) => {
+    return new Promise((resolve, reject) => {
+        const buffer = Buffer.from(reader.result)
+        ipfs.add(buffer)
+            .then((response) => {
+                console.log(response)
+                resolve(response[0].hash)
+            })
+            .catch((err) => {
+                console.log(err)
+                reject.err
+            })
+    })
+}
+
+const addDescToIpfs = (productDesc) => {
+    return new Promise((resolve, reject) => {
+        const textBuffer = Buffer.from(productDesc, 'utf-8')
+        ipfs.add(textBuffer)
+            .then((response) => {
+                console.log(response)
+                resolve(response[0].hash)
+            })
+            .catch((err) => {
+                console.log(err)
+                reject.err
+            })
     })
 }
 
