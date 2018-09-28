@@ -20,15 +20,43 @@ window.App = {
         // Bootstrap the EStore abstraction for Use.
         EStore.setProvider(web3.currentProvider)
 
-        renderStore()
+        // If on product details page, render product details. Otherwise, render store.
+        if ($('#product-details').length > 0) {
+            let productId = new URLSearchParams(window.location.search).get('id')
+            renderProductDetails(productId)
+        } else {
+            renderStore()
+        }
 
-        $('#add-item-to-store').submit((eve) => {
+        $('#add-item-to-store').submit((e) => {
             const form = document.querySelector('#add-item-to-store')
             const obj = serialize(form, { hash: true })
             saveProduct(obj)
-            eve.preventDefault()
+            e.preventDefault()
+        })
+
+        $('#buy-now').submit((e) => {
+            let sendEth = $('#buy-now-price').val()
+            let productId = $('#product-id').val()
+
+            EStore.deployed().then((f) => { f.buy(productId, { value: web3.toWei(sendEth, 'ether'), from: web3.eth.accounts[0], gas: 440000 }) }).then((p) => {
+                $('#msg').show()
+                $('#msg').html('Your purchase is a success!')
+            })
+            e.preventDefault()
         })
     }
+}
+
+const renderProductDetails = (productId) => {
+    EStore.deployed().then((p) => {
+        p.getProduct.call(productId).then((f) => {
+            $('#product-name').html(f[1])
+            $('#product-price').html(displayPrice(f[6]).toNumber())
+            $('#product-id').val(f[0])
+            $('#buy-now-price').val(displayPrice(f[6]))
+        })
+    })
 }
 
 const renderStore = () => {
@@ -51,6 +79,7 @@ const renderProduct = (instance, index) => {
         productContainer.addClass('col-sm-3 text-center col-margin-bottom-1 product')
         productContainer.append(`<div class='title'>${f[1]}</div>`)
         productContainer.append(`<div> Price: ${displayPrice(f[6])}</div>`)
+        productContainer.append(`<a href='product.html?id=${f[0]}'>Details</div>`)
         f[8] === '0x0000000000000000000000000000000000000000' ? $('#product-list').append(productContainer) : $('#product-purchased').append(productContainer)
     })
 }
