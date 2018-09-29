@@ -64,4 +64,12 @@ contract EStore {
     function getEscrowInfo(uint _productId) view public returns(address, address, address, uint, uint, bool) {
         return Escrow(productEscrow[_productId]).escrowInfo();
     }
+
+    function releaseFundToSeller(uint _productId) public {
+        Escrow(productEscrow[_productId]).releaseFundToSeller(msg.sender);
+    }
+
+    function refundToBuyer(uint _productId) public {
+        Escrow(productEscrow[_productId]).refundToBuyer(msg.sender);
+    }
 }
