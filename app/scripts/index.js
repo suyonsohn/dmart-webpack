@@ -16,7 +16,8 @@ const ipfs = ipfsAPI({ host: 'localhost', port: '5001', protocol: 'http' })
 // EStore is our usable abstraction, which we'll use through the code below.
 const EStore = contract(estoreArtifacts)
 
-let reader;
+let reader
+let productId
 
 window.App = {
     start: () => {
@@ -27,7 +28,8 @@ window.App = {
 
         // If on product details page, render product details. Otherwise, render store.
         if ($('#product-details').length > 0) {
-            let productId = new URLSearchParams(window.location.search).get('id')
+            getProductIdFromUrl()
+            // console.log(productId)
             renderProductDetails(productId)
         } else {
             renderStore()
@@ -51,12 +53,46 @@ window.App = {
             let productId = $('#product-id').val()
 
             EStore.deployed().then((f) => { f.buy(productId, { value: web3.toWei(sendEth, 'ether'), from: web3.eth.accounts[0], gas: 440000 }) }).then((p) => {
-                $('#msg').show()
-                $('#msg').html('Your purchase is a success!')
+                console.log(p)
             })
             e.preventDefault()
         })
+
+        $('#release-funds').submit((e) => {
+            getProductIdFromUrl()
+            console.log(productId)
+
+            EStore.deployed().then((i) => {
+                $('#msg').html('Your request to release fund to the seller has been submitted successfully!').show()
+                i.releaseFundToSeller(productId, { from: web3.eth.accounts[1] })
+                    .then((p) => {
+                        console.log(p)
+                        location.reload()
+                    }).catch((err) => { console.log(err) })
+            })
+
+            e.preventDefault()
+        })
+
+        $('#refund-funds').submit((e) => {
+            getProductIdFromUrl()
+            console.log(productId)
+
+            EStore.deployed().then((i) => {
+                $('#msg').html('Your request to refund has been submitted successfully!').show()
+                i.refundToBuyer(productId, { from: web3.eth.accounts[9] })
+                    .then((p) => {
+                        console.log(p)
+                        location.reload()
+                    })
+                    .catch((err) => { console.log(err) })
+            })
+        })
     }
+}
+
+const getProductIdFromUrl = () => {
+    return productId = new URLSearchParams(window.location.search).get('id')
 }
 
 const renderProductDetails = (productId) => {
@@ -71,6 +107,19 @@ const renderProductDetails = (productId) => {
                 let descText = file.toString()
                 $('#product-desc').append(`<div>${descText}</div>`)
             })
+            if (f[8] === '0x0000000000000000000000000000000000000000') {
+                $('#escrow-info').hide()
+            } else {
+                $('#buy-now').hide()
+                p.getEscrowInfo(productId).then((i) => {
+                    $('#release-count').html(i[3].toNumber())
+                    $('#refund-count').html(i[4].toNumber())
+                    $('#buyer').append(i[0])
+                    $('#seller').append(i[1])
+                    $('#arbiter').append(i[2])
+                })
+
+            }
         })
     })
 }
